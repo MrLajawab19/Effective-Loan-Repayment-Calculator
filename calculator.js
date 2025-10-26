@@ -112,36 +112,36 @@ function calculate() {
     
     // Use setTimeout to allow UI to update, then run calculations
     setTimeout(() => {
-        // Convert to months
-        const tenureMonths = tenureUnit === 'years' ? tenureValue * 12 : tenureValue;
-        const monthlyRate = annualRate / 12 / 100;
+    // Convert to months
+    const tenureMonths = tenureUnit === 'years' ? tenureValue * 12 : tenureValue;
+    const monthlyRate = annualRate / 12 / 100;
 
-        // Calculate original EMI
-        const emiOriginal = calculateEMI(loanAmount, monthlyRate, tenureMonths);
+    // Calculate original EMI
+    const emiOriginal = calculateEMI(loanAmount, monthlyRate, tenureMonths);
 
-        // Get prepayment details
-        const prepaymentType = document.querySelector('input[name="prepaymentType"]:checked').value;
-        const strategy = document.querySelector('input[name="prepaymentStrategy"]:checked').value;
+    // Get prepayment details
+    const prepaymentType = document.querySelector('input[name="prepaymentType"]:checked').value;
+    const strategy = document.querySelector('input[name="prepaymentStrategy"]:checked').value;
 
-        // Calculate amortization schedule
-        let scheduleOriginal = calculateAmortization(loanAmount, monthlyRate, emiOriginal, tenureMonths, {});
-        let scheduleWithPrepayment = scheduleOriginal;
-        
-        if (prepaymentType !== 'none') {
-            const prepayments = getPrepayments(prepaymentType, tenureMonths);
-            scheduleWithPrepayment = calculateAmortization(loanAmount, monthlyRate, emiOriginal, tenureMonths, prepayments, strategy);
-        }
+    // Calculate amortization schedule
+    let scheduleOriginal = calculateAmortization(loanAmount, monthlyRate, emiOriginal, tenureMonths, {});
+    let scheduleWithPrepayment = scheduleOriginal;
+    
+    if (prepaymentType !== 'none') {
+        const prepayments = getPrepayments(prepaymentType, tenureMonths);
+        scheduleWithPrepayment = calculateAmortization(loanAmount, monthlyRate, emiOriginal, tenureMonths, prepayments, strategy);
+    }
 
-        currentSchedule = scheduleWithPrepayment;
+    currentSchedule = scheduleWithPrepayment;
 
-        // Display results
-        displayResults(emiOriginal, scheduleOriginal, scheduleWithPrepayment, prepaymentType !== 'none');
-        
+    // Display results
+    displayResults(emiOriginal, scheduleOriginal, scheduleWithPrepayment, prepaymentType !== 'none');
+    
         // Update comparison display
         updateComparisonDisplay(scheduleOriginal, scheduleWithPrepayment, prepaymentType !== 'none');
-        
-        // Update table
-        updateAmortizationTable(scheduleWithPrepayment);
+    
+    // Update table
+    updateAmortizationTable(scheduleWithPrepayment);
 
         // Smooth scroll to results
         setTimeout(() => {
@@ -257,9 +257,19 @@ function displayResults(emiOriginal, scheduleOriginal, scheduleWithPrepayment, h
     }
 
     // Duration
-    document.getElementById('duration').textContent = `${scheduleOriginal.length} months`;
+    document.getElementById('duration').textContent = formatDuration(scheduleOriginal.length);
     if (hasPrepayment && monthsSaved > 0) {
-        document.getElementById('durationSaved').textContent = `Saved: ${monthsSaved} months`;
+        const years = Math.floor(monthsSaved / 12);
+        const months = monthsSaved % 12;
+        let savedText = '';
+        if (years > 0 && months > 0) {
+            savedText = `Saved: ${monthsSaved} months (${years} year${years > 1 ? 's' : ''} ${months} month${months > 1 ? 's' : ''})`;
+        } else if (years > 0) {
+            savedText = `Saved: ${monthsSaved} months (${years} year${years > 1 ? 's' : ''})`;
+        } else {
+            savedText = `Saved: ${monthsSaved} months`;
+        }
+        document.getElementById('durationSaved').textContent = savedText;
     } else {
         document.getElementById('durationSaved').textContent = '';
     }
@@ -287,13 +297,13 @@ function updateComparisonDisplay(scheduleOriginal, scheduleWithPrepayment, hasPr
     // Original plan - without prepayment
     document.getElementById('compareEmiOriginal').textContent = formatCurrency(emiOriginal);
     document.getElementById('compareInterestOriginal').textContent = formatCurrency(totalInterestOriginal);
-    document.getElementById('compareDurationOriginal').textContent = `${durationOriginal} months`;
+    document.getElementById('compareDurationOriginal').textContent = formatDuration(durationOriginal);
     document.getElementById('compareTotalOriginal').textContent = formatCurrency(totalPaidOriginal);
     
     // With prepayment plan
     document.getElementById('compareEmiPrepayment').textContent = formatCurrency(emiPrepayment);
     document.getElementById('compareInterestPrepayment').textContent = formatCurrency(totalInterestWithPrepayment);
-    document.getElementById('compareDurationPrepayment').textContent = `${durationPrepayment} months`;
+    document.getElementById('compareDurationPrepayment').textContent = formatDuration(durationPrepayment);
     document.getElementById('compareTotalPrepayment').textContent = formatCurrency(totalPaidPrepayment);
     
     if (hasPrepayment) {
@@ -316,7 +326,17 @@ function updateComparisonDisplay(scheduleOriginal, scheduleWithPrepayment, hasPr
         const durationDiff = durationOriginal - durationPrepayment;
         const durationChangeEl = document.getElementById('compareDurationChange');
         if (durationDiff > 0) {
-            durationChangeEl.textContent = `${durationDiff} months less`;
+            const years = Math.floor(durationDiff / 12);
+            const months = durationDiff % 12;
+            let displayText = '';
+            if (years > 0 && months > 0) {
+                displayText = `${durationDiff} months less (${years} year${years > 1 ? 's' : ''} ${months} month${months > 1 ? 's' : ''})`;
+            } else if (years > 0) {
+                displayText = `${durationDiff} months less (${years} year${years > 1 ? 's' : ''})`;
+            } else {
+                displayText = `${durationDiff} months less`;
+            }
+            durationChangeEl.textContent = displayText;
             durationChangeEl.className = 'detail-change positive';
         } else {
             durationChangeEl.textContent = '';
@@ -335,7 +355,21 @@ function updateComparisonDisplay(scheduleOriginal, scheduleWithPrepayment, hasPr
         
         // Show savings summary
         document.getElementById('totalSavings').textContent = formatCurrency(interestDiff);
-        document.getElementById('timeSavings').textContent = durationDiff > 0 ? `${durationDiff} months` : '0 months';
+        
+        // Format time savings
+        let timeSavingsText = '0 months';
+        if (durationDiff > 0) {
+            const years = Math.floor(durationDiff / 12);
+            const months = durationDiff % 12;
+            if (years > 0 && months > 0) {
+                timeSavingsText = `${durationDiff} months (${years} year${years > 1 ? 's' : ''} ${months} month${months > 1 ? 's' : ''})`;
+            } else if (years > 0) {
+                timeSavingsText = `${durationDiff} months (${years} year${years > 1 ? 's' : ''})`;
+            } else {
+                timeSavingsText = `${durationDiff} months`;
+            }
+        }
+        document.getElementById('timeSavings').textContent = timeSavingsText;
         document.getElementById('savingsSummary').style.display = 'block';
     } else {
         // Hide all change indicators
@@ -398,6 +432,19 @@ function exportToCSV() {
 
 function formatCurrency(value) {
     return '₹' + Math.round(value).toLocaleString('en-IN');
+}
+
+function formatDuration(months) {
+    const years = Math.floor(months / 12);
+    const remainingMonths = months % 12;
+    
+    if (years > 0 && remainingMonths > 0) {
+        return `${months} months (${years} year${years > 1 ? 's' : ''} ${remainingMonths} month${remainingMonths > 1 ? 's' : ''})`;
+    } else if (years > 0) {
+        return `${months} months (${years} year${years > 1 ? 's' : ''})`;
+    } else {
+        return `${months} month${months > 1 ? 's' : ''}`;
+    }
 }
 
 function sampleData(data, maxPoints) {
