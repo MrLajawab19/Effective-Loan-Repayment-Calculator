@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Loan EMI & Prepayment Calculator</title>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -28,7 +27,7 @@
 
                     <div class="form-group">
                         <label for="interestRate">Annual Interest Rate (%) <span class="required">*</span></label>
-                        <input type="number" id="interestRate" placeholder="e.g., 8.5" min="0.1" step="0.1" max="30">
+                        <input type="number" id="interestRate" placeholder="e.g., 8.5" min="0.01" step="0.01" max="30">
                         <small class="help-text">Your bank's interest rate per year</small>
                     </div>
 
@@ -169,19 +168,86 @@
                     </div>
                 </div>
 
-                <div class="chart-container">
-                    <div class="chart-title">Principal vs Interest Payment (Monthly)</div>
-                    <canvas id="principalInterestChart"></canvas>
-                </div>
+                <!-- Interactive Comparison Section -->
+                <div class="comparison-container">
+                    <div class="comparison-title">📊 Side-by-Side Comparison</div>
+                    
+                    <div class="comparison-grid">
+                        <!-- Without Prepayment Column -->
+                        <div class="comparison-column">
+                            <div class="comparison-header">
+                                <h4>Without Prepayment</h4>
+                                <div class="status-badge original">Original Plan</div>
+                            </div>
+                            
+                            <div class="comparison-details">
+                                <div class="detail-row">
+                                    <span class="detail-label">Monthly EMI</span>
+                                    <span class="detail-value" id="compareEmiOriginal">₹0</span>
+                                </div>
+                                <div class="detail-row">
+                                    <span class="detail-label">Total Interest</span>
+                                    <span class="detail-value" id="compareInterestOriginal">₹0</span>
+                                </div>
+                                <div class="detail-row">
+                                    <span class="detail-label">Loan Duration</span>
+                                    <span class="detail-value" id="compareDurationOriginal">0 months</span>
+                                </div>
+                                <div class="detail-row">
+                                    <span class="detail-label">Total Amount</span>
+                                    <span class="detail-value" id="compareTotalOriginal">₹0</span>
+                                </div>
+                            </div>
+                        </div>
 
-                <div class="chart-container">
-                    <div class="chart-title">Outstanding Loan Balance Over Time</div>
-                    <canvas id="balanceChart"></canvas>
-                </div>
+                        <!-- With Prepayment Column -->
+                        <div class="comparison-column highlight">
+                            <div class="comparison-header">
+                                <h4>With Prepayment</h4>
+                                <div class="status-badge prepayment">Optimized Plan</div>
+                            </div>
+                            
+                            <div class="comparison-details">
+                                <div class="detail-row">
+                                    <span class="detail-label">Monthly EMI</span>
+                                    <span class="detail-value" id="compareEmiPrepayment">₹0</span>
+                                    <span class="detail-change" id="compareEmiChange"></span>
+                                </div>
+                                <div class="detail-row">
+                                    <span class="detail-label">Total Interest</span>
+                                    <span class="detail-value" id="compareInterestPrepayment">₹0</span>
+                                    <span class="detail-change" id="compareInterestChange"></span>
+                                </div>
+                                <div class="detail-row">
+                                    <span class="detail-label">Loan Duration</span>
+                                    <span class="detail-value" id="compareDurationPrepayment">0 months</span>
+                                    <span class="detail-change" id="compareDurationChange"></span>
+                                </div>
+                                <div class="detail-row">
+                                    <span class="detail-label">Total Amount</span>
+                                    <span class="detail-value" id="compareTotalPrepayment">₹0</span>
+                                    <span class="detail-change" id="compareTotalChange"></span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
 
-                <div class="chart-container">
-                    <div class="chart-title">Loan Comparison: Original vs Prepayment</div>
-                    <canvas id="comparisonChart"></canvas>
+                    <!-- Savings Summary -->
+                    <div class="savings-summary" id="savingsSummary">
+                        <div class="savings-title">💰 Your Savings</div>
+                        <div class="savings-content">
+                            <div class="savings-item">
+                                <span class="savings-icon">💰</span>
+                                <span class="savings-text">Interest Saved</span>
+                                <span class="savings-amount" id="totalSavings">₹0</span>
+                            </div>
+                            <div class="savings-item">
+                                <span class="savings-icon">⏰</span>
+                                <span class="savings-text">Time Saved</span>
+                                <span class="savings-amount" id="timeSavings">0 months</span>
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
                 <div class="amortization-table">

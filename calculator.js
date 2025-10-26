@@ -1,11 +1,6 @@
 // Global variables
-let charts = {
-    principalInterest: null,
-    balance: null,
-    comparison: null
-};
-
 let currentSchedule = [];
+let autoCalculateTimeout = null;
 
 // Initialize
 document.addEventListener('DOMContentLoaded', function() {
@@ -15,23 +10,77 @@ document.addEventListener('DOMContentLoaded', function() {
 function setupEventListeners() {
     // Prepayment type toggle
     document.querySelectorAll('input[name="prepaymentType"]').forEach(radio => {
-        radio.addEventListener('change', togglePrepaymentOptions);
+        radio.addEventListener('change', function() {
+            togglePrepaymentOptions();
+            triggerAutoCalculate();
+        });
     });
 
-    // Enter key to calculate
-    document.querySelectorAll('input').forEach(input => {
+    // Auto-calculate on input changes
+    document.querySelectorAll('input[type="number"]').forEach(input => {
+        input.addEventListener('input', triggerAutoCalculate);
         input.addEventListener('keypress', function(e) {
             if (e.key === 'Enter') {
+                e.preventDefault();
+                clearTimeout(autoCalculateTimeout);
                 calculate();
             }
         });
     });
+
+    // Auto-calculate on radio changes
+    document.querySelectorAll('input[type="radio"]').forEach(radio => {
+        radio.addEventListener('change', triggerAutoCalculate);
+    });
+}
+
+function triggerAutoCalculate() {
+    // Debounce: wait 500ms after user stops typing before calculating
+    clearTimeout(autoCalculateTimeout);
+    
+    // Show subtle loading indicator in output panel if it exists
+    const outputPanel = document.getElementById('outputPanel');
+    if (outputPanel && outputPanel.style.display !== 'none') {
+        const indicator = document.getElementById('autoCalculateIndicator');
+        if (!indicator) {
+            const newIndicator = document.createElement('div');
+            newIndicator.id = 'autoCalculateIndicator';
+            newIndicator.style.cssText = 'text-align: center; color: #667eea; font-size: 0.9rem; padding: 10px; font-style: italic;';
+            newIndicator.textContent = '⏳ Updating calculations...';
+            outputPanel.insertBefore(newIndicator, outputPanel.firstChild);
+        }
+    }
+    
+    autoCalculateTimeout = setTimeout(() => {
+        const loanAmount = document.getElementById('loanAmount').value;
+        const interestRate = document.getElementById('interestRate').value;
+        const tenureValue = document.getElementById('tenureValue').value;
+        
+        // Only auto-calculate if all required fields are filled
+        if (loanAmount > 0 && interestRate > 0 && tenureValue > 0) {
+            calculate();
+            
+            // Remove indicator after calculation
+            setTimeout(() => {
+                const indicator = document.getElementById('autoCalculateIndicator');
+                if (indicator) indicator.remove();
+            }, 1000);
+        } else {
+            // Remove indicator if validation fails
+            const indicator = document.getElementById('autoCalculateIndicator');
+            if (indicator) indicator.remove();
+        }
+    }, 500);
 }
 
 function togglePrepaymentOptions() {
     const type = document.querySelector('input[name="prepaymentType"]:checked').value;
-    document.getElementById('onetimePrepayment').classList.toggle('hidden', type !== 'onetime');
-    document.getElementById('systematicPrepayment').classList.toggle('hidden', type !== 'systematic');
+    const onetimeDiv = document.getElementById('onetimePrepayment');
+    const systematicDiv = document.getElementById('systematicPrepayment');
+    
+    // Reset both
+    onetimeDiv.classList.toggle('hidden', type !== 'onetime');
+    systematicDiv.classList.toggle('hidden', type !== 'systematic');
 }
 
 function calculate() {
@@ -51,41 +100,58 @@ function calculate() {
     document.getElementById('welcomePanel').style.display = 'none';
     document.getElementById('outputPanel').style.display = 'flex';
     
-    // Smooth scroll to results
+    // Show loading state on button
+    const calculateBtn = document.querySelector('.calculate-btn');
+    const originalText = calculateBtn.textContent;
+    calculateBtn.textContent = '⏳ Calculating...';
+    calculateBtn.disabled = true;
+    
+    // Remove auto-calculate indicator if it exists
+    const autoIndicator = document.getElementById('autoCalculateIndicator');
+    if (autoIndicator) autoIndicator.remove();
+    
+    // Use setTimeout to allow UI to update, then run calculations
     setTimeout(() => {
-        document.getElementById('outputPanel').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-    }, 100);
-    
-    // Convert to months
-    const tenureMonths = tenureUnit === 'years' ? tenureValue * 12 : tenureValue;
-    const monthlyRate = annualRate / 12 / 100;
+        // Convert to months
+        const tenureMonths = tenureUnit === 'years' ? tenureValue * 12 : tenureValue;
+        const monthlyRate = annualRate / 12 / 100;
 
-    // Calculate original EMI
-    const emiOriginal = calculateEMI(loanAmount, monthlyRate, tenureMonths);
+        // Calculate original EMI
+        const emiOriginal = calculateEMI(loanAmount, monthlyRate, tenureMonths);
 
-    // Get prepayment details
-    const prepaymentType = document.querySelector('input[name="prepaymentType"]:checked').value;
-    const strategy = document.querySelector('input[name="prepaymentStrategy"]:checked').value;
+        // Get prepayment details
+        const prepaymentType = document.querySelector('input[name="prepaymentType"]:checked').value;
+        const strategy = document.querySelector('input[name="prepaymentStrategy"]:checked').value;
 
-    // Calculate amortization schedule
-    let scheduleOriginal = calculateAmortization(loanAmount, monthlyRate, emiOriginal, tenureMonths, {});
-    let scheduleWithPrepayment = scheduleOriginal;
-    
-    if (prepaymentType !== 'none') {
-        const prepayments = getPrepayments(prepaymentType, tenureMonths);
-        scheduleWithPrepayment = calculateAmortization(loanAmount, monthlyRate, emiOriginal, tenureMonths, prepayments, strategy);
-    }
+        // Calculate amortization schedule
+        let scheduleOriginal = calculateAmortization(loanAmount, monthlyRate, emiOriginal, tenureMonths, {});
+        let scheduleWithPrepayment = scheduleOriginal;
+        
+        if (prepaymentType !== 'none') {
+            const prepayments = getPrepayments(prepaymentType, tenureMonths);
+            scheduleWithPrepayment = calculateAmortization(loanAmount, monthlyRate, emiOriginal, tenureMonths, prepayments, strategy);
+        }
 
-    currentSchedule = scheduleWithPrepayment;
+        currentSchedule = scheduleWithPrepayment;
 
-    // Display results
-    displayResults(emiOriginal, scheduleOriginal, scheduleWithPrepayment, prepaymentType !== 'none');
-    
-    // Update charts
-    updateCharts(scheduleWithPrepayment, scheduleOriginal);
-    
-    // Update table
-    updateAmortizationTable(scheduleWithPrepayment);
+        // Display results
+        displayResults(emiOriginal, scheduleOriginal, scheduleWithPrepayment, prepaymentType !== 'none');
+        
+        // Update comparison display
+        updateComparisonDisplay(scheduleOriginal, scheduleWithPrepayment, prepaymentType !== 'none');
+        
+        // Update table
+        updateAmortizationTable(scheduleWithPrepayment);
+
+        // Smooth scroll to results
+        setTimeout(() => {
+            document.getElementById('outputPanel').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }, 100);
+
+        // Restore button
+        calculateBtn.textContent = originalText;
+        calculateBtn.disabled = false;
+    }, 50);
 }
 
 function calculateEMI(principal, monthlyRate, months) {
@@ -199,213 +265,87 @@ function displayResults(emiOriginal, scheduleOriginal, scheduleWithPrepayment, h
     }
 }
 
-function updateCharts(schedule, scheduleOriginal) {
-    updatePrincipalInterestChart(schedule);
-    updateBalanceChart(schedule);
-    updateComparisonChart(schedule, scheduleOriginal);
-}
-
-function updatePrincipalInterestChart(schedule) {
-    const ctx = document.getElementById('principalInterestChart');
+function updateComparisonDisplay(scheduleOriginal, scheduleWithPrepayment, hasPrepayment) {
+    // Calculate totals
+    const loanAmount = parseFloat(document.getElementById('loanAmount').value) || 0;
+    const emiOriginal = scheduleOriginal[0].emi;
     
-    if (charts.principalInterest) {
-        charts.principalInterest.destroy();
-    }
-
-    // Sample data if too many months
-    const sampledSchedule = sampleData(schedule, 50);
+    const totalInterestOriginal = scheduleOriginal.reduce((sum, row) => sum + row.interest, 0);
+    const totalInterestWithPrepayment = scheduleWithPrepayment.reduce((sum, row) => sum + row.interest, 0);
     
-    const months = sampledSchedule.map(row => row.month);
-    const principal = sampledSchedule.map(row => row.principal);
-    const interest = sampledSchedule.map(row => row.interest);
-
-    charts.principalInterest = new Chart(ctx, {
-        type: 'bar',
-        data: {
-            labels: months,
-            datasets: [
-                {
-                    label: 'Principal',
-                    data: principal,
-                    backgroundColor: 'rgba(54, 162, 235, 0.7)',
-                    borderColor: 'rgba(54, 162, 235, 1)',
-                    borderWidth: 1
-                },
-                {
-                    label: 'Interest',
-                    data: interest,
-                    backgroundColor: 'rgba(255, 159, 64, 0.7)',
-                    borderColor: 'rgba(255, 159, 64, 1)',
-                    borderWidth: 1
-                }
-            ]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            scales: {
-                x: {
-                    stacked: true,
-                    title: {
-                        display: true,
-                        text: 'Month'
-                    }
-                },
-                y: {
-                    stacked: true,
-                    title: {
-                        display: true,
-                        text: 'Amount (₹)'
-                    },
-                    ticks: {
-                        callback: function(value) {
-                            return '₹' + value.toLocaleString('en-IN');
-                        }
-                    }
-                }
-            },
-            plugins: {
-                tooltip: {
-                    callbacks: {
-                        label: function(context) {
-                            return context.dataset.label + ': ₹' + context.parsed.y.toLocaleString('en-IN');
-                        }
-                    }
-                }
-            }
+    const totalPrincipalOriginal = loanAmount;
+    const totalPrincipalWithPrepayment = scheduleWithPrepayment.reduce((sum, row) => sum + row.principal, 0);
+    
+    const totalPaidOriginal = loanAmount + totalInterestOriginal;
+    const totalPaidPrepayment = totalPrincipalWithPrepayment + totalInterestWithPrepayment;
+    
+    const durationOriginal = scheduleOriginal.length;
+    const durationPrepayment = scheduleWithPrepayment.length;
+    
+    const emiPrepayment = scheduleWithPrepayment[0].emi;
+    
+    // Original plan - without prepayment
+    document.getElementById('compareEmiOriginal').textContent = formatCurrency(emiOriginal);
+    document.getElementById('compareInterestOriginal').textContent = formatCurrency(totalInterestOriginal);
+    document.getElementById('compareDurationOriginal').textContent = `${durationOriginal} months`;
+    document.getElementById('compareTotalOriginal').textContent = formatCurrency(totalPaidOriginal);
+    
+    // With prepayment plan
+    document.getElementById('compareEmiPrepayment').textContent = formatCurrency(emiPrepayment);
+    document.getElementById('compareInterestPrepayment').textContent = formatCurrency(totalInterestWithPrepayment);
+    document.getElementById('compareDurationPrepayment').textContent = `${durationPrepayment} months`;
+    document.getElementById('compareTotalPrepayment').textContent = formatCurrency(totalPaidPrepayment);
+    
+    if (hasPrepayment) {
+        // Calculate differences and display change indicators
+        const emiDiff = emiPrepayment - emiOriginal;
+        const emiChangeEl = document.getElementById('compareEmiChange');
+        if (Math.abs(emiDiff) > 1) {
+            emiChangeEl.textContent = emiDiff < 0 ? `₹${Math.abs(Math.round(emiDiff)).toLocaleString('en-IN')} less` : `₹${Math.abs(Math.round(emiDiff)).toLocaleString('en-IN')} more`;
+            emiChangeEl.className = emiDiff < 0 ? 'detail-change positive' : 'detail-change negative';
+        } else {
+            emiChangeEl.textContent = '';
+            emiChangeEl.className = 'detail-change neutral';
         }
-    });
-}
-
-function updateBalanceChart(schedule) {
-    const ctx = document.getElementById('balanceChart');
-    
-    if (charts.balance) {
-        charts.balance.destroy();
-    }
-
-    const sampledSchedule = sampleData(schedule, 100);
-    const months = sampledSchedule.map(row => row.month);
-    const balances = sampledSchedule.map(row => row.balance);
-
-    charts.balance = new Chart(ctx, {
-        type: 'line',
-        data: {
-            labels: months,
-            datasets: [{
-                label: 'Outstanding Balance',
-                data: balances,
-                borderColor: 'rgba(153, 102, 255, 1)',
-                backgroundColor: 'rgba(153, 102, 255, 0.2)',
-                borderWidth: 2,
-                fill: true,
-                tension: 0.4
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            scales: {
-                x: {
-                    title: {
-                        display: true,
-                        text: 'Month'
-                    }
-                },
-                y: {
-                    title: {
-                        display: true,
-                        text: 'Balance (₹)'
-                    },
-                    ticks: {
-                        callback: function(value) {
-                            return '₹' + value.toLocaleString('en-IN');
-                        }
-                    }
-                }
-            },
-            plugins: {
-                tooltip: {
-                    callbacks: {
-                        label: function(context) {
-                            return 'Balance: ₹' + context.parsed.y.toLocaleString('en-IN');
-                        }
-                    }
-                }
-            }
+        
+        const interestDiff = totalInterestOriginal - totalInterestWithPrepayment;
+        const interestChangeEl = document.getElementById('compareInterestChange');
+        interestChangeEl.textContent = `Save ₹${Math.round(interestDiff).toLocaleString('en-IN')}`;
+        interestChangeEl.className = 'detail-change positive';
+        
+        const durationDiff = durationOriginal - durationPrepayment;
+        const durationChangeEl = document.getElementById('compareDurationChange');
+        if (durationDiff > 0) {
+            durationChangeEl.textContent = `${durationDiff} months less`;
+            durationChangeEl.className = 'detail-change positive';
+        } else {
+            durationChangeEl.textContent = '';
+            durationChangeEl.className = 'detail-change neutral';
         }
-    });
-}
-
-function updateComparisonChart(schedule, scheduleOriginal) {
-    const ctx = document.getElementById('comparisonChart');
-    
-    if (charts.comparison) {
-        charts.comparison.destroy();
-    }
-
-    const maxLength = Math.max(schedule.length, scheduleOriginal.length);
-    const sampledOriginal = sampleData(scheduleOriginal, 100);
-    const sampledPrepayment = sampleData(schedule, 100);
-    
-    charts.comparison = new Chart(ctx, {
-        type: 'line',
-        data: {
-            labels: sampledOriginal.map(r => r.month),
-            datasets: [
-                {
-                    label: 'Original Loan',
-                    data: sampledOriginal.map(r => r.balance),
-                    borderColor: 'rgba(255, 99, 132, 1)',
-                    backgroundColor: 'rgba(255, 99, 132, 0.1)',
-                    borderWidth: 2,
-                    fill: true,
-                    tension: 0.4
-                },
-                {
-                    label: 'With Prepayment',
-                    data: sampledPrepayment.map(r => r.balance),
-                    borderColor: 'rgba(75, 192, 192, 1)',
-                    backgroundColor: 'rgba(75, 192, 192, 0.1)',
-                    borderWidth: 2,
-                    fill: true,
-                    tension: 0.4
-                }
-            ]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            scales: {
-                x: {
-                    title: {
-                        display: true,
-                        text: 'Month'
-                    }
-                },
-                y: {
-                    title: {
-                        display: true,
-                        text: 'Balance (₹)'
-                    },
-                    ticks: {
-                        callback: function(value) {
-                            return '₹' + value.toLocaleString('en-IN');
-                        }
-                    }
-                }
-            },
-            plugins: {
-                tooltip: {
-                    callbacks: {
-                        label: function(context) {
-                            return context.dataset.label + ': ₹' + context.parsed.y.toLocaleString('en-IN');
-                        }
-                    }
-                }
-            }
+        
+        const totalDiff = totalPaidOriginal - totalPaidPrepayment;
+        const totalChangeEl = document.getElementById('compareTotalChange');
+        if (totalDiff > 0) {
+            totalChangeEl.textContent = `Save ₹${Math.round(totalDiff).toLocaleString('en-IN')}`;
+            totalChangeEl.className = 'detail-change positive';
+        } else {
+            totalChangeEl.textContent = '';
+            totalChangeEl.className = 'detail-change neutral';
         }
-    });
+        
+        // Show savings summary
+        document.getElementById('totalSavings').textContent = formatCurrency(interestDiff);
+        document.getElementById('timeSavings').textContent = durationDiff > 0 ? `${durationDiff} months` : '0 months';
+        document.getElementById('savingsSummary').style.display = 'block';
+    } else {
+        // Hide all change indicators
+        ['compareEmiChange', 'compareInterestChange', 'compareDurationChange', 'compareTotalChange'].forEach(id => {
+            const el = document.getElementById(id);
+            el.textContent = '';
+            el.className = 'detail-change';
+        });
+        document.getElementById('savingsSummary').style.display = 'none';
+    }
 }
 
 function updateAmortizationTable(schedule) {
