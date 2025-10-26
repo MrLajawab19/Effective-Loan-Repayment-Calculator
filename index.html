@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Loan EMI & Prepayment Calculator</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>💰 Loan EMI & Prepayment Calculator</h1>
+            <p>Calculate your EMI, analyze prepayment impact, and visualize your loan journey</p>
+        </div>
+
+        <div class="main-content">
+            <!-- Input Panel -->
+            <div class="input-panel">
+                <div class="section">
+                    <div class="section-title">Loan Details</div>
+                    
+                    <div class="form-group">
+                        <label for="loanAmount">Loan Amount (₹) <span class="required">*</span></label>
+                        <input type="number" id="loanAmount" placeholder="e.g., 1000000" min="1000" step="1000">
+                        <small class="help-text">Enter the total loan amount you need</small>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="interestRate">Annual Interest Rate (%) <span class="required">*</span></label>
+                        <input type="number" id="interestRate" placeholder="e.g., 8.5" min="0.1" step="0.1" max="30">
+                        <small class="help-text">Your bank's interest rate per year</small>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="tenureValue">Loan Tenure <span class="required">*</span></label>
+                        <input type="number" id="tenureValue" placeholder="e.g., 20" min="1" step="1">
+                        <small class="help-text">How long will you take to repay?</small>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Tenure Unit</label>
+                        <div class="radio-group">
+                            <label class="radio-label">
+                                <input type="radio" name="tenureUnit" value="years" checked> Years
+                            </label>
+                            <label class="radio-label">
+                                <input type="radio" name="tenureUnit" value="months"> Months
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="section">
+                    <div class="section-title">Prepayment Options</div>
+                    
+                    <div class="form-group">
+                        <label>Prepayment Type</label>
+                        <div class="radio-group">
+                            <label class="radio-label">
+                                <input type="radio" name="prepaymentType" value="none" checked> None
+                            </label>
+                            <label class="radio-label">
+                                <input type="radio" name="prepaymentType" value="onetime"> One-Time
+                            </label>
+                            <label class="radio-label">
+                                <input type="radio" name="prepaymentType" value="systematic"> Systematic
+                            </label>
+                        </div>
+                    </div>
+
+                    <div id="onetimePrepayment" class="prepayment-options hidden">
+                        <div class="form-group">
+                            <label for="onetimeAmount">Prepayment Amount (₹)</label>
+                            <input type="number" id="onetimeAmount" placeholder="e.g., 100000" min="0" step="1000">
+                            <small class="help-text">How much will you prepay?</small>
+                        </div>
+                        <div class="form-group">
+                            <label for="onetimeMonth">Prepayment Month</label>
+                            <input type="number" id="onetimeMonth" placeholder="e.g., 12" min="1" step="1">
+                            <small class="help-text">In which month will you prepay?</small>
+                        </div>
+                    </div>
+
+                    <div id="systematicPrepayment" class="prepayment-options hidden">
+                        <div class="form-group">
+                            <label for="systematicAmount">Prepayment Amount (₹)</label>
+                            <input type="number" id="systematicAmount" placeholder="e.g., 5000" min="0" step="1000">
+                            <small class="help-text">Amount to prepay regularly</small>
+                        </div>
+                        <div class="form-group">
+                            <label>Frequency</label>
+                            <div class="radio-group">
+                                <label class="radio-label">
+                                    <input type="radio" name="systematicFrequency" value="monthly" checked> Monthly
+                                </label>
+                                <label class="radio-label">
+                                    <input type="radio" name="systematicFrequency" value="yearly"> Yearly
+                                </label>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="systematicStart">Starting Month</label>
+                            <input type="number" id="systematicStart" placeholder="e.g., 1" min="1" step="1">
+                            <small class="help-text">From which month to start?</small>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="section">
+                    <div class="section-title">Prepayment Strategy</div>
+                    <div class="form-group">
+                        <label>After Prepayment</label>
+                        <div class="radio-group">
+                            <label class="radio-label" title="Pay off loan faster with same EMI">
+                                <input type="radio" name="prepaymentStrategy" value="reduceTenure" checked> Reduce Tenure
+                            </label>
+                            <label class="radio-label" title="Lower monthly payment with same duration">
+                                <input type="radio" name="prepaymentStrategy" value="reduceEMI"> Reduce EMI
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <button class="calculate-btn" onclick="calculate()">🧮 Calculate EMI & Analyze</button>
+            </div>
+
+            <!-- Welcome Message -->
+            <div class="welcome-panel" id="welcomePanel">
+                <div class="welcome-content">
+                    <div class="welcome-icon">📊</div>
+                    <h2>Ready to Calculate Your Loan EMI?</h2>
+                    <p>Fill in the loan details on the left and click <strong>"Calculate EMI & Analyze"</strong> to see:</p>
+                    <ul class="welcome-list">
+                        <li>✓ Your monthly EMI amount</li>
+                        <li>✓ Total interest payable</li>
+                        <li>✓ Loan repayment duration</li>
+                        <li>✓ Impact of prepayments on savings</li>
+                        <li>✓ Interactive charts and visualizations</li>
+                        <li>✓ Detailed month-by-month breakdown</li>
+                    </ul>
+                    <div class="welcome-tip">
+                        <strong>💡 Tip:</strong> Try different prepayment scenarios to see how much you can save!
+                    </div>
+                </div>
+            </div>
+
+            <!-- Output Panel -->
+            <div class="output-panel" id="outputPanel" style="display: none;">
+                <div class="results-header">
+                    <h3>📈 Your Loan Analysis Results</h3>
+                    <button class="recalculate-btn" onclick="scrollToTop()">✏️ Edit & Recalculate</button>
+                </div>
+                <div class="result-cards">
+                    <div class="result-card">
+                        <div class="result-label">Monthly EMI</div>
+                        <div class="result-value" id="emiOriginal">₹0</div>
+                        <div class="result-subvalue" id="emiAfter"></div>
+                    </div>
+                    <div class="result-card">
+                        <div class="result-label">Total Interest</div>
+                        <div class="result-value" id="totalInterest">₹0</div>
+                        <div class="result-subvalue" id="interestSaved"></div>
+                    </div>
+                    <div class="result-card">
+                        <div class="result-label">Loan Duration</div>
+                        <div class="result-value" id="duration">0 months</div>
+                        <div class="result-subvalue" id="durationSaved"></div>
+                    </div>
+                </div>
+
+                <div class="chart-container">
+                    <div class="chart-title">Principal vs Interest Payment (Monthly)</div>
+                    <canvas id="principalInterestChart"></canvas>
+                </div>
+
+                <div class="chart-container">
+                    <div class="chart-title">Outstanding Loan Balance Over Time</div>
+                    <canvas id="balanceChart"></canvas>
+                </div>
+
+                <div class="chart-container">
+                    <div class="chart-title">Loan Comparison: Original vs Prepayment</div>
+                    <canvas id="comparisonChart"></canvas>
+                </div>
+
+                <div class="amortization-table">
+                    <div class="section-title">Amortization Schedule</div>
+                    <button class="export-btn" onclick="exportToCSV()">📊 Export to CSV</button>
+                    <div style="max-height: 400px; overflow-y: auto; margin-top: 15px;">
+                        <table id="amortizationTable">
+                            <thead>
+                                <tr>
+                                    <th>Month</th>
+                                    <th>EMI</th>
+                                    <th>Principal</th>
+                                    <th>Interest</th>
+                                    <th>Prepayment</th>
+                                    <th>Balance</th>
+                                </tr>
+                            </thead>
+                            <tbody id="amortizationBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="calculator.js"></script>
+</body>
+</html>
